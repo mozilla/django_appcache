@@ -101,6 +101,13 @@ class TestMedia(MediaCase):
         self.assertContains(res, 'somefile.css?cache_id=123')
 
     @mock.patch.object(settings, 'APPCACHE_MEDIA_TO_CACHE',
+                       ['somefile.css#something'])
+    def test_media_url_with_fragment(self):
+        Command().handle()
+        res = self.client.get(reverse('django_appcache.manifest'))
+        self.assertContains(res, 'somefile.css#something')
+
+    @mock.patch.object(settings, 'APPCACHE_MEDIA_TO_CACHE',
                        ['http://cdn-url/somefile.css?cache_id=123'])
     @raises(ValueError)
     def test_media_url_cannot_have_domains(self):
@@ -168,9 +175,13 @@ class TestExtractImages(MediaCase):
                 /* with query string cache buster */
                 background: url(img4.jpg?build=123);
             }
+            .selector6 {
+                /* with fragment */
+                background: url(img5.jpg#something);
+            }
         """
         self.css_file = 'somefile.css'
-        for i in range(1, 5):
+        for i in range(1, 6):
             with open(os.path.join(self.media_tmp, 'img%s.jpg' % i), 'w') as f:
                 f.write('pretend this is image data')
         with open(os.path.join(self.media_tmp, self.css_file), 'w') as f:
@@ -211,6 +222,10 @@ class TestExtractImages(MediaCase):
     def test_preserve_query(self):
         res = self.extract()
         self.assertContains(res, 'img4.jpg?build=123')
+
+    def test_preserve_fragment(self):
+        res = self.extract()
+        self.assertContains(res, 'img5.jpg#something')
 
     @raises(ValueError)
     def test_non_existant_url(self):

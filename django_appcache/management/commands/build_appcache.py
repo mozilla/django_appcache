@@ -31,8 +31,7 @@ class Command(BaseCommand):
                                        '%r' % (parsed.path, pt))
                 abs_cache_paths.append(os.path.abspath(pt))
                 pt = media_path_to_url(pt)
-                if parsed.query:
-                    pt = u'%s?%s' % (pt, parsed.query)
+                pt = recreate_rel_url(pt, parsed)
                 cache_paths.append(pt)
 
         cache_paths.extend(_iter_setting(settings.APPCACHE_TO_CACHE))
@@ -77,16 +76,14 @@ def extract_images(files):
                     # External image to cache.
                     images.append(img)
                     continue
-                parts = img.split('?')
-                img = parts[0]
-                query = parts[1] if len(parts) > 1 else None
+                parsed = urlparse(img)
+                img = parsed.path
                 path = os.path.normpath(os.path.join(css_dir, img))
                 if not os.path.exists(path):
                     raise ValueError('image %r in CSS file %r does not '
                                      'exist at %r' % (img, css_path, path))
                 url = media_path_to_url(path)
-                if query:
-                    url = '%s?%s' % (url, query)
+                url = recreate_rel_url(url, parsed)
                 images.append(url)
 
     return set(images)
@@ -100,6 +97,20 @@ def media_path_to_url(path):
     if media_url.endswith('/'):
         media_url = media_url[:-1]
     return path.replace(settings.MEDIA_ROOT, media_url)
+
+
+def recreate_rel_url(url, parsed):
+    """
+    Recreates a relative URL by adding back parst that
+    were pased via urlparse().
+
+    The protocol and domain are ignored.
+    """
+    if parsed.query:
+        url = u'%s?%s' % (url, parsed.query)
+    if parsed.fragment:
+        url = u'%s#%s' % (url, parsed.fragment)
+    return url
 
 
 def _iter_setting(setting):
